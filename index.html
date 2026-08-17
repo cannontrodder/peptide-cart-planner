@@ -19,7 +19,7 @@
           </p>
         </div>
         <div class="hero-actions">
-          <button id="loadExample" class="ghost">Load example</button>
+          <button id="loadExample" class="ghost">Load sample data</button>
         </div>
       </section>
 
@@ -27,22 +27,17 @@
         <article class="panel">
           <h2>Rules</h2>
           <div class="rules">
-            <div><strong>40 clicks</strong><span>per dose</span></div>
-            <div><strong>4 doses</strong><span>per pen</span></div>
-            <div><strong>3 mL max</strong><span>per vial fill</span></div>
-            <div><strong>100 units/mL</strong><span>fixed pen scale</span></div>
+            <span>40 clicks per dose</span>
+            <span>4 doses per pen</span>
+            <span>100 units/mL fixed</span>
+            <span>3 mL max per vial</span>
           </div>
-
-          <p class="note">
-            The planner assumes all selected vials are thawed once, used as a
-            shared working pool, and then portioned into separate cart batches.
-            It chooses the fullest safe fill for each vial automatically.
-          </p>
+          <p class="note">Use dry vials plus any frozen partial stock together as one liquid pool.</p>
         </article>
 
         <article class="panel">
           <div class="section-head">
-            <h2>Vials you have</h2>
+            <h2>Dry vials</h2>
             <button id="addVial" class="small">Add vial</button>
           </div>
 
@@ -57,6 +52,28 @@
                 </tr>
               </thead>
               <tbody id="vialBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="section-head">
+            <h2>Frozen partial stock</h2>
+            <button id="addStock" class="small">Add stock</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Label</th>
+                  <th>Mg remaining</th>
+                  <th>Volume remaining (mL)</th>
+                  <th>Count</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="stockBody"></tbody>
             </table>
           </div>
         </article>
@@ -97,7 +114,7 @@
               <strong id="requiredMg">-</strong>
             </div>
             <div class="summary-card">
-              <span>Vials thawed</span>
+              <span>Dry vials used</span>
               <strong id="vialsUsed">-</strong>
             </div>
             <div class="summary-card">
@@ -107,7 +124,7 @@
           </div>
 
           <div class="result-block">
-            <h3>Vials to thaw</h3>
+            <h3>Liquid stock used</h3>
             <ul id="thawList" class="list"></ul>
           </div>
 

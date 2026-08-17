@@ -106,13 +106,20 @@ h3 {
 }
 
 .rules {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin: 14px 0 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 10px;
 }
 
-.rules div,
+.rules span {
+  border: 1px solid rgba(20, 31, 39, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  padding: 8px 12px;
+  font-size: 0.92rem;
+}
+
 .summary-card {
   border: 1px solid rgba(20, 31, 39, 0.08);
   border-radius: 18px;
@@ -120,13 +127,11 @@ h3 {
   padding: 14px;
 }
 
-.rules strong,
 .summary-card strong {
   display: block;
   font-size: 1.1rem;
 }
 
-.rules span,
 .summary-card span {
   display: block;
   margin-top: 6px;
