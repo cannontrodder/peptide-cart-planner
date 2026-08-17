@@ -270,6 +270,25 @@ tbody input {
   margin-top: 18px;
 }
 
+.leftover-block {
+  display: grid;
+  gap: 10px;
+}
+
+.leftover-summary {
+  margin: 0;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.leftover-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
 .list,
 .notes {
   margin: 0;

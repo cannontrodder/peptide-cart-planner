@@ -28,6 +28,11 @@ const els = {
   vialsUsed: $("vialsUsed"),
   leftoverMg: $("leftoverMg"),
   alerts: $("alerts"),
+  leftoverPanel: $("leftoverPanel"),
+  leftoverSummary: $("leftoverSummary"),
+  leftoverVolume: $("leftoverVolume"),
+  leftoverDose: $("leftoverDose"),
+  addLeftover: $("addLeftover"),
   thawList: $("thawList"),
   planBody: $("planBody"),
   notes: $("notes"),
@@ -209,6 +214,130 @@ function renderStructure() {
 }
 
 function renderResults() {
+  const plan = computeCurrentPlan();
+  const {
+    doseVolumeMl,
+    penVolumeMl,
+    cartPlans,
+    expandedStock,
+    totalAvailableMg,
+    totalRequiredMg,
+    strongestRequiredConcentration,
+    selected,
+    selectedReconstitutions,
+    poolConcentration,
+    availableShortfall,
+    hasStrongEnoughPool,
+    leftoverMg,
+    leftoverVolumeMl,
+    leftoverDoseMg,
+  } = plan;
+  const maxVialMl = state.settings.maxVialMl;
+
+  const alerts = [];
+  if (totalRequiredMg <= 0) alerts.push("Add at least one cart with a positive dose.");
+  if (totalAvailableMg <= 0) alerts.push("Add at least one vial with peptide in it.");
+  if (availableShortfall > 0) {
+    alerts.push(`Shortfall: you are ${fmt.mg(availableShortfall)} short on peptide for the requested carts.`);
+  }
+  if (penVolumeMl > 3) {
+    alerts.push(`A pen would be ${fmt.ml(penVolumeMl)}, which exceeds the 3 mL cart limit.`);
+  }
+  if (strongestRequiredConcentration > 0 && !hasStrongEnoughPool) {
+    alerts.push("The current liquid pool is too weak for the requested cart doses. Reduce water or add stronger stock.");
+  }
+
+  els.availableMg.textContent = fmt.mg(totalAvailableMg);
+  els.requiredMg.textContent = fmt.mg(totalRequiredMg);
+  els.vialsUsed.textContent = selected.length ? `${selected.length} vial${selected.length === 1 ? "" : "s"}` : "-";
+  els.leftoverMg.textContent = fmt.mg(leftoverMg);
+  els.alerts.textContent = alerts.join(" ");
+  els.addLeftover.disabled = leftoverMg <= 0 || poolConcentration <= 0;
+  els.leftoverPanel.style.display = leftoverMg > 0 ? "" : "none";
+  els.leftoverSummary.textContent =
+    leftoverMg > 0
+      ? `This remainder can be frozen as partial stock.`
+      : "No leftover stock yet.";
+  els.leftoverVolume.textContent = `Volume: ${leftoverVolumeMl > 0 ? fmt.ml(leftoverVolumeMl) : "-"}`;
+  els.leftoverDose.textContent = `Dose per 40 clicks: ${leftoverDoseMg > 0 ? fmt.mg(leftoverDoseMg) : "-"}`;
+
+  const stockNotes = [];
+  stockNotes.push(
+    ...selectedReconstitutions.map((vial, index) => {
+      const usedMg = Math.min(vial.usedMg, vial.mg);
+      const fill = selectedReconstitutions[index];
+      const fillText = fill.fillMl >= maxVialMl - 1e-9 ? `Fill to ${fmt.ml(maxVialMl)}` : `Fill to ${fmt.ml(fill.fillMl)}`;
+      return `<li><strong>${escapeHtml(vial.label)}</strong> ${fmt.mg(usedMg)} used of ${fmt.mg(vial.mg)}. ${fillText}.</li>`;
+    })
+  );
+  stockNotes.push(
+    ...expandedStock.map((stock) => {
+      return `<li><strong>${escapeHtml(stock.label)}</strong> ${fmt.mg(stock.mg)} in ${fmt.ml(stock.volumeMl)} at ${fmt.ratio(stock.concentration)}.</li>`;
+    })
+  );
+  els.thawList.innerHTML = stockNotes.length ? stockNotes.join("") : "<li>No stock entered yet.</li>";
+
+  els.planBody.innerHTML = cartPlans.length
+    ? cartPlans
+        .map((plan) => {
+          const stockWithdrawMl = hasStrongEnoughPool ? plan.totalMg / poolConcentration : 0;
+          const topUpMl = plan.totalVolumeMl - stockWithdrawMl;
+          const warning = topUpMl < -1e-9 ? "Needs stronger stock" : "";
+          return `
+            <tr>
+              <td>${escapeHtml(plan.label)} x ${plan.pens}</td>
+              <td>${fmt.mg(plan.totalMg)} total</td>
+              <td>${fmt.ml(plan.totalVolumeMl)}</td>
+              <td>${warning ? "-" : fmt.ml(stockWithdrawMl)}${warning ? `<div class="cell-note">${warning}</div>` : ""}</td>
+              <td>${warning ? "-" : fmt.ml(topUpMl)}</td>
+            </tr>`;
+        })
+        .join("")
+    : `<tr><td colspan="5" class="empty">Add carts to see a plan.</td></tr>`;
+
+  const notes = [];
+  notes.push(`Keep each dose at ${fmt.clicks(state.settings.clicksPerDose)} and each pen at ${state.settings.dosesPerCart} doses.`);
+  notes.push(`At ${state.settings.unitsPerMl} units per mL, each dose is ${fmt.ml(doseVolumeMl)} and each pen is ${fmt.ml(penVolumeMl)}.`);
+  notes.push(`The planner uses dry vials first, then mixes in any frozen partial stock.`);
+  notes.push(`Each selected dry vial is filled to the fullest safe volume that still supports the strongest cart concentration, which is ${fmt.ratio(strongestRequiredConcentration)}.`);
+  if (poolConcentration > 0) {
+    notes.push(`The combined liquid pool concentration is ${fmt.ratio(poolConcentration)}.`);
+  }
+  if (leftoverMg > 0) {
+    notes.push(`The leftover remainder can be frozen as ${fmt.ml(leftoverVolumeMl)} at ${fmt.mg(leftoverDoseMg)} per 40-click dose.`);
+  }
+  els.notes.innerHTML = notes.map((note) => `<li>${note}</li>`).join("");
+}
+
+function addRow(kind) {
+  const id = crypto.randomUUID();
+  if (kind === "vial") {
+    state.vialRows.push({ id, label: `Vial ${state.vialRows.length + 1}`, mg: 10, count: 1 });
+  } else if (kind === "stock") {
+    state.stockRows.push({ id, label: `Partial ${state.stockRows.length + 1}`, mg: 10, volumeMl: 0.8, count: 1 });
+  } else {
+    state.cartRows.push({ id, label: `Cart ${state.cartRows.length + 1}`, doseMg: 2.5, count: 1 });
+  }
+  renderStructure();
+  renderResults();
+}
+
+function addLeftoverToStock() {
+  const snapshot = computeCurrentPlan();
+  if (snapshot.leftoverMg <= 0 || snapshot.poolConcentration <= 0 || snapshot.leftoverVolumeMl <= 0) return;
+
+  state.stockRows.push({
+    id: crypto.randomUUID(),
+    label: `Leftover stock ${state.stockRows.length + 1}`,
+    mg: Number(snapshot.leftoverMg.toFixed(2)),
+    volumeMl: Number(snapshot.leftoverVolumeMl.toFixed(2)),
+    count: 1,
+  });
+  renderStructure();
+  renderResults();
+}
+
+function computeCurrentPlan() {
   getInputs();
 
   const {
@@ -284,88 +413,33 @@ function renderResults() {
   const poolConcentration = poolVolumeMl > 0 ? poolMg / poolVolumeMl : 0;
   const availableShortfall = Math.max(0, totalRequiredMg - totalAvailableMg);
   const hasStrongEnoughPool = poolConcentration >= strongestRequiredConcentration - 1e-9;
+  const leftoverVolumeMl = leftoverMg > 0 && poolConcentration > 0 ? leftoverMg / poolConcentration : 0;
+  const leftoverDoseMg = poolConcentration > 0 ? poolConcentration * doseVolumeMl : 0;
 
-  const alerts = [];
-  if (totalRequiredMg <= 0) alerts.push("Add at least one cart with a positive dose.");
-  if (totalAvailableMg <= 0) alerts.push("Add at least one vial with peptide in it.");
-  if (availableShortfall > 0) {
-    alerts.push(`Shortfall: you are ${fmt.mg(availableShortfall)} short on peptide for the requested carts.`);
-  }
-  if (penVolumeMl > 3) {
-    alerts.push(`A pen would be ${fmt.ml(penVolumeMl)}, which exceeds the 3 mL cart limit.`);
-  }
-  if (strongestRequiredConcentration > 0 && !hasStrongEnoughPool) {
-    alerts.push("The current liquid pool is too weak for the requested cart doses. Reduce water or add stronger stock.");
-  }
-
-  els.availableMg.textContent = fmt.mg(totalAvailableMg);
-  els.requiredMg.textContent = fmt.mg(totalRequiredMg);
-  els.vialsUsed.textContent = selected.length ? `${selected.length} vial${selected.length === 1 ? "" : "s"}` : "-";
-  els.leftoverMg.textContent = fmt.mg(leftoverMg);
-  els.alerts.textContent = alerts.join(" ");
-
-  const stockNotes = [];
-  stockNotes.push(
-    ...selectedReconstitutions.map((vial, index) => {
-      const usedMg = Math.min(vial.usedMg, vial.mg);
-      const fill = selectedReconstitutions[index];
-      const fillText = fill.fillMl >= maxVialMl - 1e-9 ? `Fill to ${fmt.ml(maxVialMl)}` : `Fill to ${fmt.ml(fill.fillMl)}`;
-      return `<li><strong>${escapeHtml(vial.label)}</strong> ${fmt.mg(usedMg)} used of ${fmt.mg(vial.mg)}. ${fillText}.</li>`;
-    })
-  );
-  stockNotes.push(
-    ...expandedStock.map((stock) => {
-      return `<li><strong>${escapeHtml(stock.label)}</strong> ${fmt.mg(stock.mg)} in ${fmt.ml(stock.volumeMl)} at ${fmt.ratio(stock.concentration)}.</li>`;
-    })
-  );
-  els.thawList.innerHTML = stockNotes.length ? stockNotes.join("") : "<li>No stock entered yet.</li>";
-
-  els.planBody.innerHTML = cartPlans.length
-    ? cartPlans
-        .map((plan) => {
-          const stockWithdrawMl = hasStrongEnoughPool ? plan.totalMg / poolConcentration : 0;
-          const topUpMl = plan.totalVolumeMl - stockWithdrawMl;
-          const warning = topUpMl < -1e-9 ? "Needs stronger stock" : "";
-          return `
-            <tr>
-              <td>${escapeHtml(plan.label)} x ${plan.pens}</td>
-              <td>${fmt.mg(plan.totalMg)} total</td>
-              <td>${fmt.ml(plan.totalVolumeMl)}</td>
-              <td>${warning ? "-" : fmt.ml(stockWithdrawMl)}${warning ? `<div class="cell-note">${warning}</div>` : ""}</td>
-              <td>${warning ? "-" : fmt.ml(topUpMl)}</td>
-            </tr>`;
-        })
-        .join("")
-    : `<tr><td colspan="5" class="empty">Add carts to see a plan.</td></tr>`;
-
-  const notes = [];
-  notes.push(`Keep each dose at ${fmt.clicks(state.settings.clicksPerDose)} and each pen at ${state.settings.dosesPerCart} doses.`);
-  notes.push(`At ${state.settings.unitsPerMl} units per mL, each dose is ${fmt.ml(doseVolumeMl)} and each pen is ${fmt.ml(penVolumeMl)}.`);
-  notes.push(`The planner uses dry vials first, then mixes in any frozen partial stock.`);
-  notes.push(`Each selected dry vial is filled to the fullest safe volume that still supports the strongest cart concentration, which is ${fmt.ratio(strongestRequiredConcentration)}.`);
-  if (poolConcentration > 0) {
-    notes.push(`The combined liquid pool concentration is ${fmt.ratio(poolConcentration)}.`);
-  }
-  els.notes.innerHTML = notes.map((note) => `<li>${note}</li>`).join("");
-}
-
-function addRow(kind) {
-  const id = crypto.randomUUID();
-  if (kind === "vial") {
-    state.vialRows.push({ id, label: `Vial ${state.vialRows.length + 1}`, mg: 10, count: 1 });
-  } else if (kind === "stock") {
-    state.stockRows.push({ id, label: `Partial ${state.stockRows.length + 1}`, mg: 10, volumeMl: 0.8, count: 1 });
-  } else {
-    state.cartRows.push({ id, label: `Cart ${state.cartRows.length + 1}`, doseMg: 2.5, count: 1 });
-  }
-  renderStructure();
-  renderResults();
+  return {
+    doseVolumeMl,
+    penVolumeMl,
+    cartPlans,
+    expandedStock,
+    totalAvailableMg,
+    totalRequiredMg,
+    strongestRequiredConcentration,
+    selected,
+    selectedReconstitutions,
+    poolConcentration,
+    availableShortfall,
+    hasStrongEnoughPool,
+    leftoverMg,
+    leftoverVolumeMl,
+    leftoverDoseMg,
+  };
 }
 
 function wireEvents() {
   els.addVial.addEventListener("click", () => addRow("vial"));
   els.addStock.addEventListener("click", () => addRow("stock"));
   els.addCart.addEventListener("click", () => addRow("cart"));
+  els.addLeftover.addEventListener("click", addLeftoverToStock);
   els.saveSetup.addEventListener("click", () => {
     const defaultName = `Setup ${getStoredSetups().length + 1}`;
     const name = window.prompt("Name this setup", defaultName)?.trim();
