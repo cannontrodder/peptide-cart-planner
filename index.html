@@ -30,23 +30,13 @@
             <div><strong>40 clicks</strong><span>per dose</span></div>
             <div><strong>4 doses</strong><span>per pen</span></div>
             <div><strong>3 mL max</strong><span>per vial fill</span></div>
-            <div><strong>1 thaw</strong><span>no refreeze cycle</span></div>
-          </div>
-
-          <div class="settings">
-            <label>
-              <span>Reconstitution water per vial (mL)</span>
-              <input id="reconstitutionMl" type="number" min="0.1" max="3" step="0.1" value="3" />
-            </label>
-            <label>
-              <span>Units per mL</span>
-              <input id="unitsPerMl" type="number" min="1" step="1" value="100" />
-            </label>
+            <div><strong>100 units/mL</strong><span>fixed pen scale</span></div>
           </div>
 
           <p class="note">
             The planner assumes all selected vials are thawed once, used as a
             shared working pool, and then portioned into separate cart batches.
+            It chooses the fullest safe fill for each vial automatically.
           </p>
         </article>
 
