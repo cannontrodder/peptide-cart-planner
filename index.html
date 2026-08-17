@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Peptide Cart Planner</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Planner</p>
+          <h1>Peptide vial to cart planning</h1>
+          <p class="lede">
+            Add the vials you have and the carts you need. The planner keeps
+            every dose at 40 clicks, groups carts into 4-dose pens, and picks
+            the smallest vial set needed for the run.
+          </p>
+        </div>
+        <div class="hero-actions">
+          <button id="loadExample" class="ghost">Load example</button>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <h2>Rules</h2>
+          <div class="rules">
+            <div><strong>40 clicks</strong><span>per dose</span></div>
+            <div><strong>4 doses</strong><span>per pen</span></div>
+            <div><strong>3 mL max</strong><span>per vial fill</span></div>
+            <div><strong>1 thaw</strong><span>no refreeze cycle</span></div>
+          </div>
+
+          <div class="settings">
+            <label>
+              <span>Reconstitution water per vial (mL)</span>
+              <input id="reconstitutionMl" type="number" min="0.1" max="3" step="0.1" value="3" />
+            </label>
+            <label>
+              <span>Units per mL</span>
+              <input id="unitsPerMl" type="number" min="1" step="1" value="100" />
+            </label>
+          </div>
+
+          <p class="note">
+            The planner assumes all selected vials are thawed once, used as a
+            shared working pool, and then portioned into separate cart batches.
+          </p>
+        </article>
+
+        <article class="panel">
+          <div class="section-head">
+            <h2>Vials you have</h2>
+            <button id="addVial" class="small">Add vial</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Label</th>
+                  <th>Mg per vial</th>
+                  <th>Count</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="vialBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="section-head">
+            <h2>Carts you need</h2>
+            <button id="addCart" class="small">Add cart</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Label</th>
+                  <th>Mg per dose</th>
+                  <th>Pen count</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="cartBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel output">
+          <h2>Plan</h2>
+
+          <div id="alerts" class="alerts" aria-live="polite"></div>
+
+          <div class="summary-grid">
+            <div class="summary-card">
+              <span>Total peptide available</span>
+              <strong id="availableMg">-</strong>
+            </div>
+            <div class="summary-card">
+              <span>Total peptide required</span>
+              <strong id="requiredMg">-</strong>
+            </div>
+            <div class="summary-card">
+              <span>Vials thawed</span>
+              <strong id="vialsUsed">-</strong>
+            </div>
+            <div class="summary-card">
+              <span>Peptide left over</span>
+              <strong id="leftoverMg">-</strong>
+            </div>
+          </div>
+
+          <div class="result-block">
+            <h3>Vials to thaw</h3>
+            <ul id="thawList" class="list"></ul>
+          </div>
+
+          <div class="result-block">
+            <h3>Cart batches</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Cart</th>
+                    <th>Needed</th>
+                    <th>Final volume</th>
+                    <th>Withdraw from stock</th>
+                    <th>Top-up bac water</th>
+                  </tr>
+                </thead>
+                <tbody id="planBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="result-block">
+            <h3>Working notes</h3>
+            <ol id="notes" class="notes"></ol>
+          </div>
+        </article>
+      </section>
+
+      <footer class="footer">
+        <p>
+          Informational planning tool only. It does not replace product
+          instructions, pharmacy guidance, or medical advice.
+        </p>
+      </footer>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
