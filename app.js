@@ -7,18 +7,12 @@ const state = {
     unitsPerMl: 100,
     maxVialMl: 3,
   },
-  vialRows: [
-    { id: crypto.randomUUID(), label: "Vial A", mg: 30, count: 2 },
-    { id: crypto.randomUUID(), label: "Vial B", mg: 50, count: 1 },
-  ],
-  stockRows: [
-    { id: crypto.randomUUID(), label: "Frozen partial A", mg: 12, volumeMl: 0.96, count: 1 },
-  ],
-  cartRows: [
-    { id: crypto.randomUUID(), label: "Cart A", doseMg: 2.5, count: 2 },
-    { id: crypto.randomUUID(), label: "Cart B", doseMg: 5, count: 1 },
-  ],
+  vialRows: [],
+  stockRows: [],
+  cartRows: [],
 };
+
+const STORAGE_KEY = "peptide-cart-planner-saved-setups";
 
 const els = {
   vialBody: $("vialBody"),
@@ -27,7 +21,8 @@ const els = {
   addVial: $("addVial"),
   addStock: $("addStock"),
   addCart: $("addCart"),
-  loadExample: $("loadExample"),
+  saveSetup: $("saveSetup"),
+  savedSetups: $("savedSetups"),
   availableMg: $("availableMg"),
   requiredMg: $("requiredMg"),
   vialsUsed: $("vialsUsed"),
@@ -109,6 +104,68 @@ function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function cloneRows(rows) {
+  return rows.map((row) => ({ ...row, id: crypto.randomUUID() }));
+}
+
+function getStoredSetups() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function setStoredSetups(setups) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(setups));
+}
+
+function renderSavedSetups() {
+  const setups = getStoredSetups();
+  if (!setups.length) {
+    els.savedSetups.innerHTML = "";
+    return;
+  }
+
+  els.savedSetups.innerHTML = setups
+    .map(
+      (setup) => `
+        <button class="saved-chip" data-action="load-setup" data-setup-id="${setup.id}">${escapeHtml(setup.name)}</button>`
+    )
+    .join("");
+}
+
+function persistCurrentSetup(name) {
+  const setups = getStoredSetups();
+  const payload = {
+    id: crypto.randomUUID(),
+    name,
+    savedAt: new Date().toISOString(),
+    state: {
+      vialRows: state.vialRows,
+      stockRows: state.stockRows,
+      cartRows: state.cartRows,
+    },
+  };
+  setups.unshift(payload);
+  setStoredSetups(setups.slice(0, 12));
+  renderSavedSetups();
+}
+
+function loadSavedSetup(setupId) {
+  const setups = getStoredSetups();
+  const setup = setups.find((item) => item.id === setupId);
+  if (!setup?.state) return;
+  state.vialRows = cloneRows(setup.state.vialRows || []);
+  state.stockRows = cloneRows(setup.state.stockRows || []);
+  state.cartRows = cloneRows(setup.state.cartRows || []);
+  renderStructure();
+  renderResults();
 }
 
 function getInputs() {
@@ -305,28 +362,16 @@ function addRow(kind) {
   renderResults();
 }
 
-function loadExample() {
-  state.vialRows = [
-    { id: crypto.randomUUID(), label: "30 mg vials", mg: 30, count: 2 },
-    { id: crypto.randomUUID(), label: "50 mg vial", mg: 50, count: 1 },
-  ];
-  state.stockRows = [
-    { id: crypto.randomUUID(), label: "Frozen partial A", mg: 12, volumeMl: 0.96, count: 1 },
-    { id: crypto.randomUUID(), label: "Frozen partial B", mg: 8, volumeMl: 0.64, count: 1 },
-  ];
-  state.cartRows = [
-    { id: crypto.randomUUID(), label: "Low dose", doseMg: 2.5, count: 2 },
-    { id: crypto.randomUUID(), label: "Higher dose", doseMg: 5, count: 1 },
-  ];
-  renderStructure();
-  renderResults();
-}
-
 function wireEvents() {
   els.addVial.addEventListener("click", () => addRow("vial"));
   els.addStock.addEventListener("click", () => addRow("stock"));
   els.addCart.addEventListener("click", () => addRow("cart"));
-  els.loadExample.addEventListener("click", loadExample);
+  els.saveSetup.addEventListener("click", () => {
+    const defaultName = `Setup ${getStoredSetups().length + 1}`;
+    const name = window.prompt("Name this setup", defaultName)?.trim();
+    if (!name) return;
+    persistCurrentSetup(name);
+  });
 
   document.body.addEventListener("input", (event) => {
     const target = event.target;
@@ -356,7 +401,13 @@ function wireEvents() {
   document.body.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLButtonElement)) return;
-    if (target.getAttribute("data-action") !== "remove-row") return;
+    const action = target.getAttribute("data-action");
+    if (action === "load-setup") {
+      const setupId = target.getAttribute("data-setup-id");
+      if (setupId) loadSavedSetup(setupId);
+      return;
+    }
+    if (action !== "remove-row") return;
     const row = target.closest("tr");
     if (!row) return;
     const id = row.getAttribute("data-id");
@@ -376,5 +427,6 @@ function wireEvents() {
 }
 
 wireEvents();
+renderSavedSetups();
 renderStructure();
 renderResults();
